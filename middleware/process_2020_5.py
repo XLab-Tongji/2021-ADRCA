@@ -31,7 +31,7 @@ num                                                                             
 '''
 
 current_time = "1586538660" 
-window_length = 3600  # 一次取数据的窗口长度/s
+window_length = 7200  # 一次取数据的窗口长度/s
 
 myurl = "http://10.60.38.173:5002/arima"  # arima接口address
 myurl_performance = "http://10.60.38.173:5002/global_arima"  # 性能指标使用的arima接口address
