@@ -15,7 +15,7 @@
   </div>
 </template>
 
-<script>
+<script>'7'
 import global from "../global";
 import axios from 'axios'
 
