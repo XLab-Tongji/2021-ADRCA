@@ -10,13 +10,7 @@
       <SG />
     </div>
     </el-card>
-    <!-- <el-popover placement="right" width="400" trigger="hover">
-      <Ima />
-      <el-button slot="reference">hover查看聚类分析</el-button>
-    </el-popover> -->
-    <!-- <div class="img">
-      <Ima />
-    </div>-->
+
   </div>
 </template>
 
