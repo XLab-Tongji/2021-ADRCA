@@ -15,8 +15,53 @@ from tigramite.pcmci import PCMCI
 from random_walk import *
 
 
-def pcmci_and_walk(dataframe: pd.DataFrame, problem_node: str, tau_max=5, *args, **kwarg):
+def filter_constant_kpi(entity: pd.DataFrame, threshold=0.002):
+    '''过滤近零方差的指标'''
+    std = MinMaxScaler()
+    keep = []
+
+    for kpi_name, kpi in entity.items():
+        kpi_df = pd.DataFrame(kpi)
+        kpi_df_scaled = std.fit_transform(kpi_df).reshape(-1)
+        kpi_scaled = pd.Series(kpi_df_scaled)
+        if kpi_scaled.var() > threshold:
+            keep.append(kpi_name)
+
+    return entity[keep], list(set(entity.columns) - set(keep))
+
+
+def patch_constant_kpi(entity: pd.DataFrame, percent=0.001):
+    assert percent >= 0 and percent < 1
+
+    count = 0
+    newentity = entity.copy()
+
+    for kpi_name, kpi in entity.items():
+        patch = False
+        newkpi = kpi.copy()
+
+        for i in range(1, len(kpi)):
+            if kpi[i] == kpi[i-1]:
+                patch = ~patch
+                if patch:
+                    count += 1
+                    newkpi[i] *= 1 + percent
+            else:
+                patch = False
+
+            newentity[kpi_name] = newkpi
+
+    print(f'patch {count} points')
+    return newentity
+
+
+def pcmci_and_walk(_dataframe: pd.DataFrame, problem_node: str, tau_max=5,
+                   p_threshold=0.05,
+                   graphargs={'figsize': (15, 10), 'dpi': 300},
+                   *args, **kwarg):
     '''PCMCI & Random Walk'''
+    dataframe = patch_constant_kpi(_dataframe)
+
     n = len(dataframe.columns)
     column_names = dataframe.columns
 
@@ -39,7 +84,7 @@ def pcmci_and_walk(dataframe: pd.DataFrame, problem_node: str, tau_max=5, *args,
             # 在P值小于0.05的边中，只保留val值最大的边
             edge = (0, 0, 0)
             for tau in range(tau_max + 1):
-                if _P[i][j][tau] < 0.5:
+                if _P[i][j][tau] < p_threshold:
                     val = _V[i][j][tau]
                     if val > edge[2]:
                         edge = (i, j, val)
@@ -51,16 +96,18 @@ def pcmci_and_walk(dataframe: pd.DataFrame, problem_node: str, tau_max=5, *args,
         G.nodes[node_name]['timelist'] = dataframe[node_name]
 
     # 画图
+    plt.subplots(figsize=graphargs.get('figsize', (15, 5)), dpi=graphargs.get('dpi', 300))
     pos = nx.spring_layout(G)
     edge_labels = {(u, v): str(d['weight'])[:5] for u, v, d in G.edges(data=True)}
     nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
-    nx.draw_networkx(G, pos, arrows=True, **{
-        'node_color': 'red',
-        'node_size': 400,
-        'width': 2,
-        'arrowstyle': '->',
-        'arrowsize': 12,
-    })
+    nx.draw_networkx(
+        G, pos, arrows=True,
+        node_color='lightblue',
+        node_size=graphargs.get('node_size', 1200),
+        width=graphargs.get('width', 3),
+        arrowstyle='->',
+        arrowsize=16,
+    )
     plt.savefig('graph.png')
 
     # 计算概率转移矩阵
@@ -89,7 +136,7 @@ def read_ragged_csv(filename, **param_dict):
     return pd.Series(data, index)
 
 
-def filter_constant_kpi(entities: dict, threshold=0.002):
+def filter_all_constant_kpi(entities: dict, threshold=0.002):
     '''过滤近零方差的指标'''
     std = MinMaxScaler()
     res = {}
@@ -211,3 +258,14 @@ def visualize_cluster(entities: dict, label_dir: Path, output_dir: Path):
                         bbox_inches="tight",
                         pad_inches=0)
             plt.close(fig)
+
+
+if __name__ == '__main__':
+    df = pd.DataFrame([
+        [1.0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+        [1.0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4],
+        [1.0, 2, 3, 4, 5, 5, 5, 5, 9, 10, 11, 11, 11, 11, 15, 16],
+        [1.0, 1, 1, 2, 2, 2, 3, 3, 3, 10, 11, 11, 11, 11, 15, 16],
+    ]).T
+    df1 = patch_constant_kpi(df)
+    print(df1)

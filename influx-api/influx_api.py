@@ -44,13 +44,13 @@ def query_all_kpi(system_name, start_time, end_time):
     data['_time'] = data['_time'].apply(lambda x: int(x.timestamp()))
     data.set_index('_time', inplace=True)
 
-    res = pd.DataFrame(index=data.index)
+    res = pd.DataFrame(index=data.index.unique())
     for kpi_name in data['_field'].unique():
         for tc in data['tc'].unique():
             new_measurement_name = f'{system_name}--{kpi_name}--tc{tc}'
             res[new_measurement_name] = data['_value'].loc[
                 (data['_field'] == kpi_name) & (data['tc'] == tc)]
-    return res
+    return res.sort_index()
 
 
 def query_kpi(system_name, kpi_name, start_time, end_time):
@@ -92,11 +92,11 @@ def query_kpi(system_name, kpi_name, start_time, end_time):
     data['_time'] = data['_time'].apply(lambda x: int(x.timestamp()))
     data.set_index('_time', inplace=True)
 
-    res = pd.DataFrame(index=data.index)
+    res = pd.DataFrame(index=data.index.unique())
     for tc in data['tc'].unique():
         new_measurement_name = f'{system_name}--{kpi_name}--tc{tc}'
         res[new_measurement_name] = data['_value'][data['tc'] == tc]
-    return res
+    return res.sort_index()
 
 
 def query_all_metric(system_name, cmdb_id, start_time, end_time):
@@ -135,11 +135,11 @@ def query_all_metric(system_name, cmdb_id, start_time, end_time):
     data['_time'] = data['_time'].apply(lambda x: int(x.timestamp()))
     data.set_index('_time', inplace=True)
 
-    res = pd.DataFrame(index=data.index)
+    res = pd.DataFrame(index=data.index.unique())
     for measurement in data['_measurement'].unique():
         new_measurement_name = f'{system_name}--{cmdb_id}--{measurement}'
         res[new_measurement_name] = data['_value'][data['_measurement'] == measurement]
-    return res
+    return res.sort_index()
 
 
 def query_metric(system_name, cmdb_id, kpi_name, start_time, end_time):
@@ -279,7 +279,7 @@ def query_all_kpi2(system_name, start_time, end_time):
     data['_time'] = data['_time'].apply(lambda x: int(x.timestamp()))
     data.set_index('_time', inplace=True)
 
-    res = pd.DataFrame(index=data.index)
+    res = pd.DataFrame(index=data.index.unique())
     for kpi_name in data['_field'].unique():
         for cmdb_id in data['cmdb_id'].unique():
             new_measurement_name = f'{system_name}--{kpi_name}--{cmdb_id}'
@@ -326,11 +326,11 @@ def query_kpi2(system_name, kpi_name, start_time, end_time):
     data['_time'] = data['_time'].apply(lambda x: int(x.timestamp()))
     data.set_index('_time', inplace=True)
 
-    res = pd.DataFrame(index=data.index)
+    res = pd.DataFrame(index=data.index.unique())
     for cmdb_id in data['cmdb_id'].unique():
         new_measurement_name = f'{system_name}--{kpi_name}--{cmdb_id}'
         res[new_measurement_name] = data['_value'][data['cmdb_id'] == cmdb_id]
-    return res
+    return res.sort_index()
 
 
 def query_all_metric2(system_name, cmdb_id, start_time, end_time):
@@ -373,11 +373,11 @@ def query_all_metric2(system_name, cmdb_id, start_time, end_time):
     data = data[~data.duplicated(subset=['_measurement', '_time'], keep=False)]
     data.set_index('_time', inplace=True)
 
-    res = pd.DataFrame(index=data.index)
+    res = pd.DataFrame(index=data.index.unique())
     for measurement in data['_measurement'].unique():
         new_measurement_name = f'{system_name}--{cmdb_id}--{measurement}'
         res[new_measurement_name] = data[data['_measurement'] == measurement]['_value']
-    return res
+    return res.sort_index()
 
 
 def query_metric2(system_name, cmdb_id, kpi_name, start_time, end_time):

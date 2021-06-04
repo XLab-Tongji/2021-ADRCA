@@ -78,7 +78,7 @@ def partial_corr_c(G: nx.DiGraph,
 
 
 def granger_p_value(df: DataFrame):
-    res = grangercausalitytests(df, 10, verbose=False)
+    res = grangercausalitytests(df, 6, verbose=False)
     # 10种时延取最小
     # 取均值
     min_p_value = min([sum(map(lambda pir:pir[1], v[0].values()))/4 for v in res.values()])
