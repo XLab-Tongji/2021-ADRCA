@@ -244,54 +244,55 @@ def find_span_performance_index(system_name, cmdb_id, current_time, window_lengt
 
 # 根据质心数据表寻找对应的时间序列数据
 
-# 若调用链无异常，黄金指标数据异常，则利用质心数据寻找新的数据进行检测以寻找异常实体
+#若调用链无异常，黄金指标数据异常，则利用质心数据寻找新的数据进行检测以寻找异常实体
 def centroid_find_abnormal(current_time):
-    # 处理查询起始时间以使用influx接口
+    #处理查询起始时间以使用influx接口
     start_time = int(current_time) - int(window_length) - 1
-
-    # 需要多取10分钟数据
+    
+    #需要多取10分钟数据
     end_time = int(current_time) + 600 + 1
-
-    # data 字典模板
+        
+    #data 字典模板
     res_dict_template = {
         "kpi_name": "",
+        "cmdb_id":""
     }
-
+    
     data_list = []
-
-    with open("result2.csv", "r") as f:
+    
+    with open("result2.csv","r") as f:
         reader = csv.reader(f)
-        # print(type(reader))
-        n = 1
+#         print(type(reader))
+        n = 1    
         for row in reader:
             if n == 1:
                 n += 1
                 continue
-
+                
             data_list.append(res_dict_template.copy())
-
+            
             data_list[-1]["data"] = []
-            data_list[-1]["kpi_name"] = row[1]
-
+#             data_list[-1]["kpi_name"] = index_name_trans(i)
+            
             series = influx_api.query_metric2('business-kpi', row[0], row[1], start_time, end_time)
-            # print("series",type(series),series)
+#             print("series",series)
             if not isinstance(series, pd.DataFrame):
                 df = series.to_frame().reset_index()
             else:
                 continue
-            df.rename(columns={"_time": "timestamp", "_value": index_name_trans(str(row[0]))}, inplace=True)
+            df.rename(columns = {"_time":"timestamp","_value":row[1]}, inplace = True)
             df.set_index(["timestamp"])
-            # print(df)
-
+#             print(df)
+            
             data_list[-1]["data"].append(df)
-            data_list[-1]["kpi_name"] = index_name_trans(row[0])
-
+            data_list[-1]["kpi_name"] = row[1]
+            data_list[-1]["cmdb_id"] = row[0]
             data_list[-1]["data"][0] = data_list[-1]["data"][0].to_json(orient="records")
             data_list[-1]["data"][0] = json.loads(data_list[-1]["data"][0])
 
             data_list[-1]["data"] = data_list[-1]["data"][0][0:-1]
-
-        # 返回根据质心数据找到的时间序列数据
+            
+        #返回根据质心数据找到的时间序列数据
         return arima_test_centroid(data_list)
 
 
@@ -369,27 +370,31 @@ def arima_test_callchain(data):
 # 使用质心数据进行arima检测
 
 # arima接口使用质心取出的数据进行检测
+#arima接口使用质心取出的数据进行检测
 def arima_test_centroid(data):
-    # 异常实体列表
+    #异常实体列表
     response_list = []
     for i in data:
-
-        # 调用arima接口，指定数据格式
+                
+        #调用arima接口，指定数据格式
+        response = ''
         print("质心数据调用arima接口")
-        result = requests.get(myurl_performance, data=json.dumps(i), headers={'content-type': "application/json"})
+        result = requests.get(myurl_performance,data = json.dumps(i), headers = {'content-type': "application/json"})
         print(result.text)
+
         if result.text[0] == "<":
             continue
-        response = eval(result.text)["data"]["res"]  # 检测的结果
-        # 若response为True则说明实体无异常
-        # 若response为False则有异常
-
-        # 异常则将其加入异常实体列表
+        response = eval(result.text)["data"]["res"]#检测的结果
+        #若response为True则说明实体无异常
+        #若response为False则有异常
+        
+        #异常则将其加入异常实体列表
         if response == false:
-            if i["kpi_name"] not in response_list:
-                print(i["kpi_name"])
-                response_list.append(i["kpi_name"])
-    print(response_list)
+#             print(i)
+            if i["cmdb_id"] not in response_list:
+                print("异常实体:",i["cmdb_id"])
+                response_list.append(i["cmdb_id"])
+    print(response_list)    
     return response_list
 
 
