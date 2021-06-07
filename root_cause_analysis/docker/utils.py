@@ -88,8 +88,13 @@ def pcmci_and_walk(_dataframe: pd.DataFrame, problem_node: str, tau_max=5,
                     val = _V[i][j][tau]
                     if val > edge[2]:
                         edge = (i, j, val)
-            # 插入到图中
-            G.add_edge(column_names[edge[0]], column_names[edge[1]], weight=edge[2])
+
+            # 插入到图中，保留权值大的边
+            if not G.has_edge(column_names[edge[1]], column_names[edge[0]]):
+                G.add_edge(column_names[edge[0]], column_names[edge[1]], weight=edge[2])
+            elif G.get_edge_data(column_names[edge[1]], column_names[edge[0]])['weight'] < edge[2]:
+                G.remove_edge(column_names[edge[1]], column_names[edge[0]])
+                G.add_edge(column_names[edge[0]], column_names[edge[1]], weight=edge[2])
 
     # 将每个指标的时间序列存到该节点的'timelist'数据域中
     for node_name in G.nodes:

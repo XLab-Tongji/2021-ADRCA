@@ -5,3 +5,8 @@ tslearn
 pandas
 pingouin
 networkx
+gunicorn
+gevent
+Flask
+flask_cors
+tigramite
