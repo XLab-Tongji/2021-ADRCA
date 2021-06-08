@@ -38,14 +38,14 @@ def patch_constant_kpi(entity: pd.DataFrame, percent=0.001):
 
     for kpi_name, kpi in entity.items():
         patch = False
-        newkpi = kpi.copy()
+        newkpi = kpi.copy().astype('float64')
 
         for i in range(1, len(kpi)):
             if kpi[i] == kpi[i-1]:
                 patch = ~patch
                 if patch:
                     count += 1
-                    newkpi[i] *= 1 + percent
+                    newkpi[i] = kpi[i] * (1 + percent) if kpi[i] else random.random() * 1E-6
             else:
                 patch = False
 
