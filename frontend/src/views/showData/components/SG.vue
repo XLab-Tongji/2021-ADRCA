@@ -8,7 +8,7 @@
     </div>
   </div>
 </template>
-
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 <script>
 import S from "../components/Search";
 import Graph from "../components/Graph";

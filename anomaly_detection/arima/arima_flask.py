@@ -16,11 +16,13 @@ import os
 from pathlib import Path
 from sklearn.preprocessing import MinMaxScaler
 import csv
+import pymysql
+
 
 app = Flask(__name__)     #创建一个wsgi应用
 def read_kpi_list():
-    #input_files=r"C:\Users\syj\Documents\Jupyter\read_data/*.csv"
-    input_files=r"/arima/data/*.csv"
+    #input_files=r"C:\Users\syj\Documents\Jupyter\read_data/kpi_list.csv"
+    input_files=r"/arima/data/kpi_list.csv"
     path = Path(input_files)
     csv_files = list(path.parents[0].glob(path.name))
     fieldnames = ["kpi_name", "algorithm"]
@@ -65,7 +67,9 @@ def three_sigma(ts,test_residual):
 
 def global_three_sigma_algorithm(kpi_name,ts):
     n=3
-    data=ts.copy()
+    origin_data=ts.copy()
+    data=ts.copy().dropna()
+    origin_data_y=origin_data[kpi_name]
     data_y = data[kpi_name]
     data_x = data.index
     ymean = np.mean(data_y)
@@ -75,9 +79,35 @@ def global_three_sigma_algorithm(kpi_name,ts):
     outlier = [] #将异常值保存
     outlier_x = []
     for i in range(len(data_y)-20, len(data_y)):
-        if (data_y[i] < threshold1)|(data_y[i] > threshold2):
-            outlier.append(data_y[i])
-            outlier_x.append(data_x[i])
+        if (origin_data_y[i] < threshold1)|(origin_data_y[i] > threshold2):
+            outlier.append(origin_data_y[i])
+            outlier_x.append(origin_data_y[i])
+            return False
+        else:
+            continue
+    return True
+
+
+def global_arima_three_sigma_algorithm(kpi_name,ts,origin_data):
+    n=3
+    data=ts.copy()
+    print(data)
+    data_y = data['residual']
+    data_x = data.index
+    print(data_y)
+    origin_data_y=origin_data[kpi_name]
+    
+    ymean = np.mean(data_y)
+    ystd = np.std(data_y)
+    threshold1 = ymean - n * ystd
+    threshold2 = ymean + n * ystd
+    outlier = [] #将异常值保存
+    outlier_x = []
+    print(origin_data_y)
+    for i in range(len(origin_data_y)-20, len(origin_data_y)):
+        if (origin_data_y[i] < threshold1)|(origin_data_y[i] > threshold2):
+            outlier.append(origin_data_y[i])
+            outlier_x.append(origin_data_y[i])
             return False
         else:
             continue
@@ -146,6 +176,8 @@ def autoarima(kpi_name,kpi_value,ts,isSeasonal): #arima算法
 
 def global_autoarima(kpi_name,ts,isSeasonal): #全局arima算法
     print(ts)
+    origin_data=ts.copy()
+    ts=ts.dropna()
     #ts.index=pd.to_datetime(ts.index)
     if (isSeasonal==0): #非季节性arima
         model = auto_arima(ts.dropna(), start_p=0, start_q=0, max_p=6, max_q=6, max_d=2,
@@ -176,7 +208,7 @@ def global_autoarima(kpi_name,ts,isSeasonal): #全局arima算法
     # test_pred=arima.predict(len(ts),len(ts),typ = 'levels',dynamic=False)
     # test_residual=kpi_value-test_pred.values
     #print(three_sigma(residual,test_residual))
-    return global_three_sigma_algorithm('residual',residual)
+    return global_arima_three_sigma_algorithm(kpi_name,residual,origin_data)
     #return three_sigma(residual,test_residual)  #判断输入值在不在3—sigma的范围内
 
 
@@ -217,7 +249,7 @@ def get_arima():
     if kpi_type[kpi_name]=='arima': #使用arima算法
         res=autoarima(kpi_name,kpi_value,data,0)   #The return type must be a string, tuple  #jsonify(data)
     if kpi_type[kpi_name]=='stationary':  #使用3-sigma算法
-        res=three_sigma_algorithm(kpi_name,kpi_value,data)
+        res=three_sigma_algorithm(kpi_name,kpi_value,data.dropna( ))
     if kpi_type[kpi_name]=='sarima': #使用sarima
         res=autoarima(kpi_name,kpi_value,data,1)
     if kpi_type[kpi_name]=='abnormal': #异常数据 不处理
@@ -277,11 +309,61 @@ def get_test():
     print(c)
     return jsonify({'res':is_Seasonal})   
 
+
 @app.route('/kpi_list',methods=['GET'])
 def get_kpi_list():
     #print(request.get_json())
     
     return read_kpi_list()
+
+
+
+@app.route('/login',methods=['POST'])
+def login():
+    get_args=request.get_json()
+    username =get_args.get('username')
+    password=get_args.get('password')
+    db = pymysql.Connect(host='10.60.38.173',port=3307,user='root',passwd='arima',db='arima')
+    cursor = db.cursor()
+    sql = """ select USERNAME,PASSWORD from USER where USERNAME='%s' """ % (username)
+    cursor.execute(sql)
+    results = cursor.fetchone()
+    if results:
+        if (results[1]!=password):
+            message="0"
+        else:
+            message="1"
+    else:
+        message="-1"
+    db.close()
+    return jsonify({'res':message})   
+
+@app.route('/registry',methods=['POST'])
+def registry():
+    get_args=request.get_json()
+    username =get_args.get('username')
+    password=get_args.get('password')
+    db = pymysql.Connect(host='10.60.38.173',port=3307,user='root',passwd='arima',db='arima')
+    cursor = db.cursor()
+    sql = """ select USERNAME from USER where USERNAME='%s' """ % (username)
+    cursor.execute(sql)
+    db.commit()
+    
+    results = cursor.fetchone()
+    if results:
+        message="0"
+    else:
+        sql_insert = """insert into USER values('%s','%s')"""%(username,password)
+        try:
+            cursor.execute(sql_insert)
+            db.commit()
+            message="1"
+        except:
+            db.rollback()
+            message="-1"
+         
+    db.close()
+    return jsonify({'res':message})   
 
 
 @app.route('/')           #添加路由：根
