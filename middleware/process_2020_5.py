@@ -260,7 +260,7 @@ def centroid_find_abnormal(current_time):
     
     data_list = []
     
-    with open("result2.csv","r") as f:
+    with open("result.csv","r") as f:
         reader = csv.reader(f)
 #         print(type(reader))
         n = 1    
